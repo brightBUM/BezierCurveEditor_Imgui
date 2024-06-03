@@ -195,10 +195,14 @@ void EditCurve(GLFWwindow* window)
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
 
-    float lineColor[4] = { 1.0f, 0.5f, 0.2f, 1.0f },
-          pointColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    float thickness = 5.0f;
+    ImVec4 curveColor = ImVec4(1.0f, 0.5f, 0.2f, 1.0f);
+    ImVec4 lineColor = ImVec4(1.0f, 0.2f, 1.0f, 1.0f);
+    ImVec4 pointColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+    
+    float curveSize = 5.0f;
+    float lineSize = 2.0f;
     float pointSize = 10.0f;
+    float tValue = 0.0f;
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -244,7 +248,7 @@ void EditCurve(GLFWwindow* window)
         ImGui::NewFrame();
 
         lineShader.Use();
-        glLineWidth(thickness);
+        glLineWidth(curveSize);
         
         if (subDivisionActive)
         {
@@ -278,7 +282,7 @@ void EditCurve(GLFWwindow* window)
         }
         else
         {
-            lineShader.SetFloat4("lineColor", lineColor[0], lineColor[1], lineColor[2], lineColor[3]);
+            lineShader.SetFloat4("lineColor", curveColor.x, curveColor.y, curveColor.z, curveColor.w);
             glBindVertexArray(VAO[0]);
             glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
             glBufferData(GL_ARRAY_BUFFER, curvePoints.size() * sizeof(float), &curvePoints[0], GL_STATIC_DRAW);
@@ -286,19 +290,48 @@ void EditCurve(GLFWwindow* window)
 
             pointShader.Use();
             glPointSize(pointSize);//set point size to 10 pixels
-            pointShader.SetFloat4("pointColor", pointColor[0], pointColor[1], pointColor[2], pointColor[3]);
+
+
+            pointShader.SetFloat4("pointColor", pointColor.x, pointColor.y, pointColor.z, pointColor.w);
             glBindVertexArray(VAO[1]);
             glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
             glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(float), &points[0], GL_STATIC_DRAW);
             glDrawArrays(GL_POINTS, 0, points.size() / 3);
-        }
 
+            glLineWidth(lineSize);
+            pointShader.SetFloat4("pointColor", lineColor.x, lineColor.y, lineColor.z, lineColor.w);
+            glDrawArrays(GL_LINE_STRIP, 0, points.size() / 3);
+
+        }
         ImGui::Begin("Curve Editor");
-        ImGui::Text("this is a curve editor");
-        ImGui::ColorEdit4("curveColor", lineColor);
-        ImGui::ColorEdit4("pointColor", pointColor);
-        ImGui::SliderFloat("thickness", &thickness, 3.0f, 10.f);
-        ImGui::SliderFloat("pointSize", &pointSize, 8.0f, 15.f);
+
+        if (ImGui::CollapsingHeader("Edit Curve"))
+        {
+            ImGui::Text("this is a curve editor");
+            ImGui::ColorEdit3("curveColor", (float*)&curveColor);
+            ImGui::ColorEdit4("pointColor", (float*)&pointColor);
+            ImGui::ColorEdit4("lineColor", (float*)&lineColor);
+            ImGui::SliderFloat("curveSize", &curveSize, 3.0f, 10.f);
+            ImGui::SliderFloat("pointSize", &pointSize, 8.0f, 15.f);
+            ImGui::SliderFloat("lineSize", &lineSize, 1.0f, 3.f);
+            if (ImGui::Button("Fire Button Event"))
+            {
+                cout << "button pressed" << endl;
+            }
+        }
+        if (ImGui::CollapsingHeader("Bezier Point"))
+        {
+            ImGui::InputFloat("t value", &tValue, 0.1f, 1.0f, "%.1f");
+            if (ImGui::Button("Visualize Bez Point"))
+            {
+                cout << "bez point - "<< tValue << endl;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Clear"))
+            {
+                cout << "clear" << endl;
+            }
+        }
         ImGui::End();
 
         ImGui::Render();
