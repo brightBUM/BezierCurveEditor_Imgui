@@ -46,20 +46,52 @@ std::vector<float> BezierCurve::DrawCurveBW(float from,float to)
 
 std::vector<float> BezierCurve::GetControlPointArray()
 {
-	std::vector<float> controlPointArray;
-
-	for (int i = 0; i < controlPoints.size(); i++)
-	{
-		controlPointArray.push_back(controlPoints[i].X);
-		controlPointArray.push_back(controlPoints[i].Y);
-		controlPointArray.push_back(controlPoints[i].Z);
-	}
-	return controlPointArray;
+	return PointToFloatVector(controlPoints);
 }
 
-Point3f BezierCurve::BezPoint(float t)
+std::vector<float> BezierCurve::GetBezVisualPointArray()
 {
-	return CasteljauPoint(controlPoints, t)[0];
+	return PointToFloatVector(bezVisualizePoints);
+}
+
+std::vector<float> BezierCurve::GetBezSubPointArray()
+{
+	return PointToFloatVector(subPoints);
+}
+
+void BezierCurve::BezPoint(float t)
+{
+	bezVisualizePoints.clear();
+	subPoints.clear();
+	//return CasteljauPoint(controlPoints, t)[0];
+	subPoints = controlPoints;
+	std::vector<Point3f> points = this->controlPoints;
+	std::vector<Point3f> nextPoints;
+
+	while (nextPoints.size() != 1)
+	{
+		if (nextPoints.size() != 0)
+		{
+			points = nextPoints;
+			nextPoints.clear();
+		}
+		//cout << "points size - " << points.size() << endl;
+
+		for (int i = 0; i < points.size() - 1; i++)
+		{
+			bezVisualizePoints.push_back(points[i]);
+			bezVisualizePoints.push_back(points[i + 1]);
+			Point3f curvePoint = Point3f::LerpPoint(points[i], points[i + 1], t);
+			nextPoints.push_back(curvePoint);
+			subPoints.push_back(curvePoint);
+		}
+	}
+	//cout << "next point size- " << nextPoints.size() <<endl;
+	bezVisualizePoints.push_back(nextPoints[0]);
+	/*for (int i = 0; i < bezVisualizePoints.size(); i++)
+	{
+		cout << "x - " << bezVisualizePoints[i].X << ", y - " << bezVisualizePoints[i].Y << " , z - " << bezVisualizePoints[i].Z << endl;
+	}*/
 }
 
 // Recurvse algorithm that lerps all the controlpoints till we get a single curvePoint
@@ -78,7 +110,22 @@ std::vector<Point3f> BezierCurve::CasteljauPoint(std::vector<Point3f> points,flo
 		nextPoints = CasteljauPoint(nextPoints,t);
 	}
 	return nextPoints;
+
 	
+	
+}
+
+std::vector<float> BezierCurve::PointToFloatVector(std::vector<Point3f> points)
+{
+	std::vector<float> floatPoint;
+
+	for (int i = 0; i < points.size(); i++)
+	{
+		floatPoint.push_back(points[i].X);
+		floatPoint.push_back(points[i].Y);
+		floatPoint.push_back(points[i].Z);
+	}
+	return floatPoint;
 }
 
 std::vector<BezierCurve> BezierCurve::DeCasteljauSubDivision(float t)

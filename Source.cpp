@@ -25,6 +25,8 @@ BezierCurve editorBezierCurve(30);
 std::vector<BezierCurve> subCurves;
 std::vector<float> curvePoints;
 std::vector<float> handlePoints;
+std::vector<float> bezVisualizePoints;
+std::vector<float> bezSubPoints;
 std::vector<float> points;
 float t_value;
 Point3f bezPoint;
@@ -90,7 +92,13 @@ void EditCurve(GLFWwindow* window)
     curvePoints = editorBezierCurve.DrawCurve();
     points = editorBezierCurve.GetControlPointArray();
 
-    unsigned int VBO[6], VAO[6];
+    //cout << "visualize point before size - " << bezVisualizePoints.size() << endl;
+
+    editorBezierCurve.BezPoint(0.0f); 
+    bezVisualizePoints = editorBezierCurve.GetBezVisualPointArray();
+    bezSubPoints = editorBezierCurve.GetBezSubPointArray();
+
+    unsigned int VBO[8], VAO[8];
     
 #pragma region Binding
     
@@ -126,6 +134,35 @@ void EditCurve(GLFWwindow* window)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    //bez lines 
+    glGenVertexArrays(1, &VAO[6]);
+    glGenBuffers(1, &VBO[6]);
+    glBindVertexArray(VAO[6]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[6]);
+    glBufferData(GL_ARRAY_BUFFER, bezVisualizePoints.size() * sizeof(float), &bezVisualizePoints[0], GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    //clean
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    //bez subpoints; 
+    glGenVertexArrays(1, &VAO[7]);
+    glGenBuffers(1, &VBO[7]);
+    glBindVertexArray(VAO[7]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[7]);
+    glBufferData(GL_ARRAY_BUFFER, bezSubPoints.size() * sizeof(float), &bezSubPoints[0], GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    //clean
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     //subcurve 1
     glGenVertexArrays(1, &VAO[2]);
@@ -195,12 +232,12 @@ void EditCurve(GLFWwindow* window)
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
 
-    ImVec4 curveColor = ImVec4(1.0f, 0.5f, 0.2f, 1.0f);
-    ImVec4 lineColor = ImVec4(1.0f, 0.2f, 1.0f, 1.0f);
+    ImVec4 curveColor = ImVec4(0.9f, 0.49f, 0.13f, 1.0f);
+    ImVec4 lineColor = ImVec4(0.18f, 0.8f, 0.44f, 1.0f);
     ImVec4 pointColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
     
     float curveSize = 5.0f;
-    float lineSize = 2.0f;
+    float lineSize = 3.0f;
     float pointSize = 10.0f;
     float tValue = 0.0f;
 
@@ -209,16 +246,7 @@ void EditCurve(GLFWwindow* window)
     {
         // Input
         ProcessInput(window);
-        if (bezPointCheck && !subDivisionActive)
-        {
-            cout << "enter t value " << endl;
-            cin >> t_value;
-            bezPoint = editorBezierCurve.BezPoint(t_value);
-            cout << "bez point -" << bezPoint.X << " , " << bezPoint.Y << " , " << bezPoint.Z << endl;
-            points.push_back(bezPoint.X);
-            points.push_back(bezPoint.Y);
-            points.push_back(bezPoint.Z);
-        }
+       
         if (subDivideCheck && !subDivisionActive)
         {
             t_value = NULL;
@@ -240,7 +268,7 @@ void EditCurve(GLFWwindow* window)
         }
         // Render
         // Clear the colorbuffer
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.20f, 0.28f, 0.36f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -288,22 +316,45 @@ void EditCurve(GLFWwindow* window)
             glBufferData(GL_ARRAY_BUFFER, curvePoints.size() * sizeof(float), &curvePoints[0], GL_STATIC_DRAW);
             glDrawArrays(GL_LINE_STRIP, 0, curvePoints.size() / 3); // 2 vertices to draw a line
 
-            pointShader.Use();
-            glPointSize(pointSize);//set point size to 10 pixels
+
+            if (bezPointCheck)
+            {
+                //visualize extra points and lines
+                glLineWidth(lineSize);
+                lineShader.SetFloat4("lineColor", lineColor.x, lineColor.y, lineColor.z, lineColor.w);
+                glBindVertexArray(VAO[6]);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO[6]);
+                glBufferData(GL_ARRAY_BUFFER, bezVisualizePoints.size() * sizeof(float), &bezVisualizePoints[0], GL_STATIC_DRAW);
+                glDrawArrays(GL_LINES, 0, bezVisualizePoints.size()/3);
 
 
-            pointShader.SetFloat4("pointColor", pointColor.x, pointColor.y, pointColor.z, pointColor.w);
-            glBindVertexArray(VAO[1]);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
-            glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(float), &points[0], GL_STATIC_DRAW);
-            glDrawArrays(GL_POINTS, 0, points.size() / 3);
+                
+                pointShader.Use();
+                glPointSize(8.0f);//set point size to 10 pixels
+                pointShader.SetFloat4("pointColor", 0.94f, 0.76f, 0.06f, 1.0f);
+                glBindVertexArray(VAO[7]);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO[7]);
+                glBufferData(GL_ARRAY_BUFFER, (bezSubPoints.size() - 3) * sizeof(float), &bezSubPoints[0], GL_STATIC_DRAW);
+                glDrawArrays(GL_POINTS, 0, (bezSubPoints.size()-3) / 3);
 
-            glLineWidth(lineSize);
-            pointShader.SetFloat4("pointColor", lineColor.x, lineColor.y, lineColor.z, lineColor.w);
-            glDrawArrays(GL_LINE_STRIP, 0, points.size() / 3);
+                glPointSize(12.0f);//set point size to 10 pixels
+                pointShader.SetFloat4("pointColor", 1.0f, 1.0f, 1.0f, 1.0f);
+                glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float), &bezSubPoints[bezSubPoints.size() - 3], GL_STATIC_DRAW);
+                glDrawArrays(GL_POINTS, 0, 1);
+            }
+            else
+            {
+                pointShader.Use();
+                glPointSize(pointSize);//set point size to 10 pixels
+                pointShader.SetFloat4("pointColor", pointColor.x, pointColor.y, pointColor.z, pointColor.w);
+                glBindVertexArray(VAO[1]);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+                glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(float), &points[0], GL_STATIC_DRAW);
+                glDrawArrays(GL_POINTS, 0, points.size() / 3);
+            }
 
         }
-        ImGui::Begin("Curve Editor");
+        //ImGui::Begin("");
 
         if (ImGui::CollapsingHeader("Edit Curve"))
         {
@@ -313,7 +364,7 @@ void EditCurve(GLFWwindow* window)
             ImGui::ColorEdit4("lineColor", (float*)&lineColor);
             ImGui::SliderFloat("curveSize", &curveSize, 3.0f, 10.f);
             ImGui::SliderFloat("pointSize", &pointSize, 8.0f, 15.f);
-            ImGui::SliderFloat("lineSize", &lineSize, 1.0f, 3.f);
+            ImGui::SliderFloat("lineSize", &lineSize, 1.0f, 5.f);
             if (ImGui::Button("Fire Button Event"))
             {
                 cout << "button pressed" << endl;
@@ -324,15 +375,25 @@ void EditCurve(GLFWwindow* window)
             ImGui::InputFloat("t value", &tValue, 0.1f, 1.0f, "%.1f");
             if (ImGui::Button("Visualize Bez Point"))
             {
-                cout << "bez point - "<< tValue << endl;
+                editorBezierCurve.BezPoint(tValue);
+
+                bezVisualizePoints = editorBezierCurve.GetBezVisualPointArray();
+                bezSubPoints = editorBezierCurve.GetBezSubPointArray();
+
+
+                cout << "\n bez point -" << bezSubPoints[bezSubPoints.size()-3] <<
+                                " , " << bezSubPoints[bezSubPoints.size()-2] <<
+                                " , " << bezSubPoints[bezSubPoints.size()-1] << endl;
+
+                bezPointCheck = true;
             }
             ImGui::SameLine();
             if (ImGui::Button("Clear"))
             {
-                cout << "clear" << endl;
+                bezPointCheck = false;
             }
         }
-        ImGui::End();
+        //ImGui::End();
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -341,7 +402,7 @@ void EditCurve(GLFWwindow* window)
         glfwPollEvents();
     }
     // De-allocate all resources once they've outlived their purpose
-    auto size = subDivisionActive ? 6 : 2;
+    auto size = subDivisionActive ? 7 : 2;
     for (int i = 0; i < size; i++)
     {
         glDeleteVertexArrays(1, &VAO[i]);
@@ -474,10 +535,7 @@ void ProcessInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
-        bezPointCheck = true;
-    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE)
-        bezPointCheck = false;
+    
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
         subDivideCheck = true;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE)
